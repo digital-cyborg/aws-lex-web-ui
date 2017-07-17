@@ -1,263 +1,253 @@
-# Sample Amazon Lex Web Interface
+# Lex Chatbot Web Interface
+
+> Sample Lex Chatbot Web Interface Application
 
 ## Overview
-This repository provides a set of
-[AWS CloudFormation](https://aws.amazon.com/cloudformation/) templates to
-automatically build and deploy a sample
-[Amazon Lex](https://aws.amazon.com/lex/)
-web interface.
+This application provides a sample chatbot web interface for [Amazon
+Lex](https://aws.amazon.com/lex/). It is a responsive user interface that
+can be run as a mobile friendly stand-alone web app or embedded into an
+existing site using an iframe. The interface supports interacting with
+Lex using text and voice.
 
-## Web UI Application
-The sample chatbot web user interface can be used to interact with an
-Amazon Lex bot using text or voice with a webRTC capable browser.
+## Application Architecture
+The chatbot interface is a JavaScript driven web application.
+It works by making calls to the Lex service directly from a
+user's browser using temporary credentials obtained from [Amazon
+Cognito](https://aws.amazon.com/cognito/). This allows the chatbot web app
+to be served from S3 or CloudFront in a scalable serverless architecture.
 
-The interface interacts with AWS services directly from the browser. Here
-is a diagram of how the application works:
+The chatbot web app is built using the [Vue.js](https://vuejs.org/)
+JavaScript framework. The user interface is structured as modular
+components using [Vuetify.js](https://vuetifyjs.com/). The application
+state management is done using [Vuex](https://vuex.vuejs.org/en/). The
+code base employs ECMAScript 6 (ES6) features such as modules, arrow
+functions and classes to improve modularity and brevity.
 
-<img src="./img/webapp-diagram.png" width=640>
+## Embedding as an iframe
+Please refer to the README in the [static/iframe](static/iframe) directory
+for details.
 
-For details about the web app, see the accompanying
-[README](lex-web-ui/README.md) file and the source under the
-[lex-web-ui](lex-web-ui) directory.
+## Credential Management
+This sample application uses [Amazon
+Cognito](https://aws.amazon.com/cognito/) to provide temporary AWS
+credentials for use with the Lex and Polly services.
 
-Here is a screenshot of it:
+The accompanying CloudFormation stack in this project, automatically
+creates a
+[Cognito Identity Pool](http://docs.aws.amazon.com/cognito/latest/developerguide/identity-pools.html)
+for you. If you want to manually use your own Cognito Identity Pool,
+you will need to link a role to it. The associated role should
+allow access to the Lex PostText/PostContent API calls and Polly
+SynthesizeSpeech.
 
-<img src="./img/webapp-screenshot.png" width=640>
+## Voice Support
+Users can interact with the bot using voice on compatible browsers.
+The application uses the
+[getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
+call from the
+[WebRTC](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API)
+API to record the voice interaction from the browser.
 
-## Launching
-To deploy a CloudFormation stack with a working demo of the application,
-follow the steps below:
+The audio recorder (based on
+[Recorderjs](https://github.com/mattdiamond/Recorderjs)
+is implemented using the
+[Web Audio](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+API to detect silence and to process the audio. Processing supports
+optional frequency filtering around the human voice to reduce noise.
+It automatically encodes the sound in PCM WAV file format using a
+[Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers).
+The web worker also resamples the audio and optionally trims silence in
+the beginning and end of the recording to make the sound files smaller
+and to achieve faster network transfers.
 
-1. Click the following CloudFormation button to launch your own copy of
-the sample application stack in the us-east-1 (N. Virginia) AWS region:
-[![cloudformation-launch-stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=lex-web-ui&templateURL=https://s3.amazonaws.com/aws-bigdata-blog/artifacts/aws-lex-web-ui/artifacts/templates/master.yaml).
-You can accept the defaults in the CloudFormation Create Stack Wizard up
-until the last step. At the last step, when prompted to create the stack,
-select the checkmark that says: "I acknowledge that AWS CloudFormation
-might create IAM resources with custom names". It takes about 10 minutes
-for the CloudFormation stacks to got to `CREATE_COMPLETE` status.
-2. Once the status of all the CloudFormation stacks
-is `CREATE_COMPLETE`, click on the `PipelineUrl` link in the output
-section of the master stack.  This will take you to the CodePipeline
-console. You can monitor the progress of the deployment pipeline from
-there. It takes about 10 minutes to build and deploy the application.
-3. Once the pipeline has deployed successfully, go back to the
-output section of the master CloudFormation stack and click on the
-`ParentPageUrl` link. You can also browse to the `WebAppUrl` link. Those
-links will take you to the sample application running as an embedded
-iframe or as a stand-alone web application respectively.
+The encoded sound is automatically passed to the Lex service. In turn,
+Lex performs automatic speech recognition (ASR), natural language
+understanding (NLU), transcription and bot processing.
 
-## CloudFormation Stack
-### Diagram
-Here is a diagram of the CloudFormation stack created by this project:
+The voice interaction has been tested with recent versions of Chrome
+and Firefox on both PC and Mac desktops plus Microsoft Edge on PCs. It
+is also compatible with Android devices using Chrome and FireOS Tablets
+using Silk. Safari and iOS devices do not support WebRTC yet so voice
+interaction is not enabled in that platform. For compatibility, see:
+[caniuse webrtc](http://caniuse.com/#search=webrtc)
 
-<img src="./img/cfn-stack.png" width=640>
+NOTE: browsers may require the application to be served using HTTPS for
+the WebRTC API to work. Make sure to serve the application from an HTTPS
+enabled server or if hosting on S3 or CloudFront, use https in the URL.
 
-### CloudFormation Resources
-The CloudFormation stack creates the following resources in your AWS account:
+## Configuration and Customization
+The web ui supports configuration from 1) config files, 2) URL query
+parameter and 3) via `postMessage` when running in an iframe. The
+configuration is overriden in that order where the latter takes
+precedence.
 
-- A [Amazon Lex](http://docs.aws.amazon.com/lex/latest/dg/what-is.html)
-bot. You can optionally pass the bot name of an existing one to avoid
-creating a new one.
-- A [Cognito Identity Pool](http://docs.aws.amazon.com/cognito/latest/developerguide/identity-pools.html)
-used to pass temporary AWS credentials to the web app. You can optionally
-pass the ID of an existing Cognito Identity Pool to avoid creating a
-new one.
-- A [CodeCommit](https://aws.amazon.com/codecommit/)
-repository loaded with the source code in this project
-- A continuous delivery pipeline using [CodePipeline](https://aws.amazon.com/codepipeline/)
-and [CodeBuild](https://aws.amazon.com/codebuild/).
-The pipeline automatically builds and deploys changes to the app committed
-  to the CodeCommit repo.
-- An [S3](https://aws.amazon.com/s3/) bucket to store build artifacts
-- Two S3 buckets to host the web application (parent and iframe). The
-  pipeline deploys to this bucket.
-- [Lambda](https://aws.amazon.com/lambda/) functions used as CloudFormation
-[Custom Resources](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-custom-resources.html)
-to facilitate custom provisioning logic
-- [CloudWatch Logs](http://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html)
-groups automatically created to log the output of Lambda the functions
-- Associated [IAM roles](http://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html)
-for all of the above
+The application requires configuration of resources such as the Lex
+Bot name and the Cognito Identity Pool ID that may be dynamically
+created. Additionally, you may want to change the default configuration
+or pass dynamic parameter at run time. See the configuration mechanisms
+listed below for details.
 
-### CloudFormation Templates
-The CloudFormation launch button above launches a master stack that in
-turn creates various nested stacks. The following table lists the
-CloudFormation templates used to create these stacks:
+### Default configuration
+Various aspects of the chatbot UI web app can be configured in the
+[default config](src/config/index.js) file. This includes UI details
+such as colors, titles and text fields and Lex bot configuration.
 
-| Template | Description |
-| --- | --- |
-| [templates/master.yaml](templates/master.yaml) | This is the master template used to deploy all the stacks. It uses nested sub-templates to include the ones listed below. |
-| [templates/lexbot.yaml](templates/lexbot.yaml) | Lex bot and associated resources (i.e. intents and slot types). |
-| [templates/cognito.yaml](templates/cognito.yaml) | Cognito Identity Pool and IAM role for unauthenticated identity access. |
-| [templates/coderepo.yaml](templates/coderepo.yaml) | CodeCommit repo dynamically initialized with the files in this repo using CodeBuild and a custom resource. |
-| [templates/pipeline.yaml](templates/pipeline.yaml) | Continuous deployment pipeline of the Lex Web UI Application using CodePipeline and CodeBuild. The pipeline takes the source from CodeCommit, builds the Lex web UI application using CodeBuild and deploys the app to an S3 bucket. |
+### Environment Configuration
+To run this sample web UI, you are going to need externally created
+resources such as the Lex Bot name and the Cognito Identity Pool ID
+(this repo includes CloudFormation templates to create the Cognito
+resources). These parameters can be passed to the application using a JSON
+config file under the `src/config` directory. The default configuration
+values in the `src/config/index.js` file can be overriden with this JSON
+config file.
 
-### Parameters
-When launching the stack, you will see a list of available parameters
-and a brief explanation of each one. You can take the default values of
-most of the CloudFormation parameters. The parameters that you may need
-to modify are:
+The JSON config file should contain the the same key/value structure
+as the `configDefault` object in the `src/config/index.js` file. The
+content of the JSON config is merged with the values of `configDefault`
+overriding any defaults.
 
-- `BotName`: Name of pre-existing Lex bot. This is an optional parameter.
-  If left empty, a sample bot will be created based on the
-  [OrderFlowers](http://docs.aws.amazon.com/lex/latest/dg/gs-bp.html)
-  bot in the Lex
-  [Getting Started](http://docs.aws.amazon.com/lex/latest/dg/gs-console.html)
-  documentation.
-- `CognitoIdentityPoolId`: Id of an existing Cognito Identity Pool.
-  This is an optional parameter. If left empty, a Cognito Identity Pool
-  will be automatically created. The pool ID is used by the web ui to
-  get AWS credentials for making calls to Lex and Polly.
-- `ParentOrigin`: [Origin](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
-  of the parent window. Only needed if you wish to embed the web app
-  into an existing site using an iframe. The origin is used to control
-  which sites can communicate with the iframe
-
-### Output
-Once the CloudFormation stack is successfully launched, the status of
-all nested stacks will be in the `CREATE_COMPLETE` green status. At
-this point, the master stack will reference the resources in the output
-section. Here is a list of the output variables:
-
-- `PipelineUrl`: Link to CodePipeline in the AWS console.  After the stack
-is successfully launched, the pipeline automatically starts the build and
-deployment process. You can click on this link to monitor the pipeline.
-- `CodeCommitRepoUrl`: CodeCommit repository clone URL. You can clone
-the repo using this link and push changes to it to have the pipeline
-build and deploy the web app
-- `WebAppUrl`: URL of the web app running on a full page. The
-web app will be available once the pipeline has completed deploying
-- `ParentPageUrl`: URL of the web app running in an iframe. This is an
-optional output that is returned only when the stack creates the sample
-when page. It is not returned if an existing origin is passed as a
-parameter to the stack during creation.
-- `CognitoIdentityPoolId`: Pool ID of the Cognito Identity Pool created
-by the stack. This is an optional output that is returned only when the
-stack creates a Cognito Identity Pool. It is not returned if an existing
-pool ID was passed as a parameter to the stack during creation.
-
-## Deployment Pipeline
-When the stacks have completed launching, you can see the status of
-the pipeline as it builds and deploys the application. The link to the
-pipeline in the AWS console can be found in the `PipelineUrl` output
-variable of the master stack.
-
-Once the pipeline successfully finishes deploying, you should be able to
-browse to the web app. The web app URL can be found in the `WebAppUrl`
-output variable.
-
-The source of this project is automatically forked into a CodeCommit
-repository created by the CloudFormation stack. Any changes pushed to
-the master branch of this forked repo will automatically kick off the
-pipeline which runs a CodeBuild job to build and deploy a new version
-of the web app. You will need to
-[setup](http://docs.aws.amazon.com/codecommit/latest/userguide/setting-up.html)
-CodeCommit to push changes to this repo. You can obtain the CodeCommit
-git clone URL from the `CodeCommitRepoUrl` output variable of the
-master stack.
-
-Here is a diagram of the deployment pipeline:
-
-<img src="./img/pipeline.png" width=640>
-
-## Directory Structure
-This project contains the following main directories:
+The JSON config files reside under the `src/config` directory. They
+follow the naming convention: `config.<ENV>.json` where `<ENV>`
+depends on the on the environment type as determined by the `NODE_ENV`
+environmental variable (e.g. development, production). This allows to
+pass a configuration that is specific to the specific build or runtime
+environment.  The files follow this directory structure:
 
 ```
- .
- |__ build                 # Makefile used for uploading the project sources into S3
- |__ lex-web-ui            # sample Lex web ui application source
- |__ templates             # cloudformation templates and related lambda functions
-    |__ custom-resources   # lambda functions used in cfn custom resources
-```
-# How do I ...?
-
-## Use or deploy my own bot?
-The `BotName` CloudFormation parameter can be used to point the
-stack to an existing bot. In the application, you can also change
-the configuration files or pass parameters to it (see the application
-[README](lex-web-ui/README.md) file for details).
-
-If you want to make changes to the sample
-bot deployed by the stack, you can edit the
-[bot-definition.json](templates/custom-resources/bot-definition.json)
-file. This file is used by the
-[lex-manager.py](templates/custom-resources/lex-manager.py) which is
-run in Lambda by a CloudFormation Custom Resource in the bot stack
-created by the
-[lexbot.yaml](templates/lexbot.yaml) template.
-The bot definition is in a JSON file that contains all the resources
-associated with the bot including intents and slot types.
-
-The lex-manager.py script can be also used as a stand-alone shell script.
-It allows to export existing bots (including associated resources like
-intents and slot types) into a JSON file. The same script can be
-used to import a bot definition into an account or to recursively delete
-a bot and associated resources. Here is the script usage:
-
-```
-$ python lex-manager.py  -h
-usage: lex-manager.py [-h] [-i [file] | -e [botname] | -d botname]
-
-Lex bot manager. Import, export or delete a Lex bot. Used to
-import/export/delete Lex bots and associated resources (i.e. intents, slot
-types).
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -i [file], --import [file]
-                        Import bot definition from file into account. Defaults
-                        to: bot-definition.json
-  -e [botname], --export [botname]
-                        Export bot definition as JSON to stdout Defaults to
-                        reading the botname from the definition file: bot-
-                        definition.json
-  -d botname, --delete botname
-                        Deletes the bot passed as argument and its associated
-                        resources.
+.
+|__ src
+   |__ config
+      |__ config.dev.json   # local development config
+      |__ config.prod.json  # production config
+      |__ config.test.json  # testing config
 ```
 
-## Delete the CloudFormation stacks?
-The resources created by this stack can be easily removed from your
-account by deleting the master CloudFormation stack. The master stack
-is the one that was first created using the "Launch Stack" button. By
-deleting this stack, the rest of the sub-stacks and resources will be
-deleted with the exception of the CloudWatch Logs groups created by the
-stack (these are retained for troubleshooting purposes).
+Here's an example of the `config.dev.json` file:
 
-The S3 buckets created by the stacks are deleted by default. If you wish
-to retain the data in these buckets, you should set the `CleanupBuckets`
-parameter to false in the master stack.
+```
+{
+  "cognito": {
+    "poolId": "us-east-1:deadbeef-cac0-babe-abcd-abcdef01234",
+  },
+  "lex": {
+    "bot": "MyLexBotName",
+    ...
+  },
+  "ui": {
+    "parentOrigin": "http://localhost:8080",
+    ...
+  }
+}
+```
 
-## Deploy Using My Own Bootstrap S3 Bucket
-The source used to bootstrap the CodeCommit repo created by CloudFormation
-is dynamically downloaded from a predefined S3 bucket. If you want
-to use your own S3 bucket, this project provides a `Makefile` under the
-`build` directory to facilitate uploading the bootstrap artifacts. Follow
-these steps:
+### Dynamic Configuration
+#### URL Parameter
+The chatbot UI configuration can be initialized using the `config` URL
+parameter. This is supported both in iframe and stand-alone mode of the
+chatbot UI.
 
-1. Create your own S3 bucket (you might want to enable
-[bucket
-versioning](http://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html)
-on this bucket).
-2. Modify the [master.yaml](templates/master.yaml) template to point to
-your bucket. The bucket and path are configured by the `BootstrapBucket`
-and `BootstrapPrefix` variables under the `Mappings` section of the
-template.
-3. Modify the variables in the local build environment file:
-[build/config.env](build/config.env). These variables control the build
-environment and web application deployment. In specific, you should
-modify the following variables:
-     - `BOOTSTRAP_BUCKET_PATH`: point it to your own bucket and prefix
-       merged together as the path to the artifacts (same as step 2)
-4. Upload the files to your S3 bucket using `make upload`. The
-[build](build) directory under the root of the repo contains a `Makefile`
-that can be used to build the artifacts and upload the files to your S3
-bucket. It uses the [aws cli](https://aws.amazon.com/cli/) to copy the
-files to S3. To upload the files to your s3 bucket, issue the following
-commands (from the root of the repository):
-```shell
-cd build
-make upload # requires a properly configured aws cli installation
+The `config` URL parameter should follow the same JSON structure of the
+`configDefault` object in the `src/config/index.js` file. This parameter
+should be a JSON serialized and URL encoded JavaScript object. Values
+from this parameter override the ones from the environment config files.
+
+For example to change the initialText config field, you can use a URL
+like this:
+
+`https://mybucket.s3.amazonaws.com/index.html#/?config=%7B%22lex%22%3A%7B%22initialText%22%3A%22Ask%20me%20a%20question%22%7D%7D`
+
+### Iframe Config
+When running in an iframe, the chatbot UI can obtain its config from the
+parent page. Additionally, the parent page has its own config. Please
+refer to the README in the [static/iframe](static/iframe) directory
+for details.
+
+### Playback Options
+The voice responses from the Lex `postContent` API calls are automatically
+played back. The chatbot UI provides options to control the playback.
+For example, you can allow to interrupt the playback of long responses and
+fine tune the various values associated with interruptions:
+
+```
+...
+lex: {
+
+  // allow to interrupt playback of lex responses by talking over playback
+  enablePlaybackInterrupt: true,
+
+  // microphone volume level to cause an interrupt
+  // lower values makes interrupt more likely
+  playbackInterruptVolumeThreshold: -60,
+
+  // only allow to interrupt playback longer than this value (in seconds)
+  playbackInterruptMinDuration: 3,
+}
+...
+```
+
+### Logos
+You can change the default logo and favorite icon images by placing
+your own images in `src/assets/logo.(png|jge?g|svg)` and
+`src/assets/favicon.(png|jpe?g|svg|ico)`
+respectively. The favorite icon is set to the logo image if the
+`src/assets/favicon.*` file is not found.
+
+Alternatively, you can set the `ui.toolbarLogo` and `ui.favIcon` fields
+in the config files to an image URL.
+
+### Lex Session Attributes
+The Lex service supports
+[session attributes](http://docs.aws.amazon.com/lex/latest/dg/context-mgmt.html#context-mgmt-session-attribs)
+as a way to pass application context to a bot or to share information
+accross intents. This chatbot UI passes the `sessionAttributes` parameter
+to the Lex API and automatically updates it from the bot responses.
+
+The `sessionAttributes` parameter can be initialized so that the client
+passes a value in the first request. This is supported both in iframe
+and stand-alone mode of the chatbot UI.
+
+### Response Cards
+The chatbot UI supports Lex
+[Response Cards](http://docs.aws.amazon.com/lex/latest/dg/ex-resp-card.html).
+For Lex `postText` API calls, response cards are supported natively.
+When using the `postContent` API call, response cards can be passed using
+session attributes in the `appContext.responseCard` key of the
+`sessionAttributes` object. For details about the response cards format,
+see the
+[ResponseCard documentation](http://docs.aws.amazon.com/lex/latest/dg/API_runtime_ResponseCard.html).
+
+
+## Dependencies and Build Setup
+The application dependencies are managed using
+[npm](https://www.npmjs.com/). The build artifacts are bundled using
+[webpack](https://webpack.js.org/). Initial scaffolding of this project
+was done with [vue-cli](https://github.com/vuejs/vue-cli).
+
+For detailed explanation on how things work, checkout the
+[guide](http://vuejs-templates.github.io/webpack/) and
+[docs for vue-loader](http://vuejs.github.io/vue-loader).
+
+``` bash
+# install dependencies
+npm install
+
+# serve with hot reload at localhost:8080
+npm run dev
+
+# build for production with minification
+npm run build
+
+# build for production and view the bundle analyzer report
+npm run build --report
+
+### NOTE: tests are not implemented
+
+# run unit tests
+npm run unit
+
+# run e2e tests
+npm run e2e
+
+# run all tests
+npm test
 ```
