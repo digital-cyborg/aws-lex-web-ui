@@ -90,4 +90,13 @@ export default {
   flex-direction: column;
   width: 100%;
 }
+
+nav img {
+  height: 40px;
+  width: 40px;
+}
+
+.toolbar.toolbar--dark.red {
+  background: #4d4de0 !important;
+}
 </style>
