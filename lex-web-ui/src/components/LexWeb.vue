@@ -92,11 +92,11 @@ export default {
 }
 
 nav img {
-  height: 40px;
-  width: 40px;
+  height: 70px;
+  width: 90px;
 }
 
 .toolbar.toolbar--dark.red {
-  background: #4d4de0 !important;
+  background: #65af63 !important;
 }
 </style>
